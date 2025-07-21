@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.24.1",
     "assemblyai": "^4.14.0",
     "axios": "^1.10.0",
+    "crypto-js": "^4.2.0",
     "googleapis": "^153.0.0",
     "lucide-react": "^0.525.0",
     "markdown": "^0.5.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
