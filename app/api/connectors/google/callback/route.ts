@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const oauthClient = getOAuthClient();
   const { tokens } = await oauthClient.getToken(code);
 
-  const redirectUrl = new URL('http://localhost:3000/connectors');
+  const redirectUrl = new URL('https://slack-test-theta.vercel.app/connectors');
   redirectUrl.searchParams.set('token', tokens.access_token || '');
 
   return NextResponse.redirect(redirectUrl);
