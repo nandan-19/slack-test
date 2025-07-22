@@ -1,8 +1,13 @@
-// auth.js
+// auth.ts
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import { connectMongo } from "@/lib/mongo"
-import User from "@/models/User"
+
+// Dynamic import to avoid compilation issues
+async function getUserModel() {
+  const { default: User } = await import("@/models/User");
+  return User;
+}
 
 export const {
   handlers: { GET, POST },
@@ -12,8 +17,8 @@ export const {
 } = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
           prompt: "consent",
@@ -29,6 +34,7 @@ export const {
       if (account?.provider === "google") {
         try {
           await connectMongo();
+          const User = await getUserModel();
           
           // Check if user exists
           let existingUser = await User.findOne({ email: user.email });
@@ -65,11 +71,11 @@ export const {
       if (session.user?.email) {
         try {
           await connectMongo();
+          const User = await getUserModel();
           const dbUser = await User.findOne({ email: session.user.email });
           if (dbUser) {
             session.user.id = dbUser._id.toString();
-            // @ts-expect-error: createdAt is not in the default type but exists in our schema
-            session.user.createdAt = dbUser.createdAt;
+            (session.user as any).createdAt = dbUser.createdAt;
           }
         } catch (error) {
           console.error("Error fetching user from database:", error);
@@ -88,8 +94,5 @@ export const {
   },
   session: {
     strategy: "jwt",
-  },
-  pages: {
-    signIn: "/auth/signin", // Optional: custom sign-in page
   },
 })
