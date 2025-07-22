@@ -127,6 +127,8 @@ export async function POST(req: Request) {
         });
         const chJson = await chRes.json();
 
+        console.log("Slack Token:", slackData?.accessToken?.slice(0, 6));
+        console.log("All Channels Response:", chJson);
         if (chJson.ok && chJson.channels) {
           allChannelsData = chJson.channels;
 
