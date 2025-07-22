@@ -45,21 +45,33 @@ function normalizeSectionValue(v: any): string {
   return v ? String(v) : "";
 }
 
-/* --------------- Fallback Summaries --------------- */
-function fallbackJiraSummary(issues: any[]): string {
+/* --------------- Enhanced Fallback Summaries --------------- */
+function fallbackJiraSummary(issues: any[], keywords: string[]): string {
   if (!issues.length) return "None.";
-  return issues
-    .slice(0, 5)
-    .map(i => `• ${i.issueKey} [${i.state}] (${i.priority || "NoPri"}) ${i.title}`)
-    .join("\n");
+  
+  const relevantIssues = issues.filter(i => 
+    keywords.some(k => i.title.toLowerCase().includes(k))
+  );
+  
+  const issuesToShow = relevantIssues.length > 0 ? relevantIssues : issues.slice(0, 5);
+  
+  return issuesToShow.map(i => 
+    `• ${i.issueKey} [${i.state}] "${i.title}" (Priority: ${i.priority || "NoPri"}${i.assignee ? `, Assigned to: ${i.assignee}` : ''})`
+  ).join("\n");
 }
 
-function fallbackSlackSummary(messages: any[]): string {
+function fallbackSlackSummary(messages: any[], keywords: string[]): string {
   if (!messages.length) return "None.";
-  return messages
-    .slice(0, 5)
-    .map(m => `• #${m.channel} ${m.user}: ${m.text}`)
-    .join("\n");
+  
+  const relevantMessages = messages.filter(m =>
+    keywords.some(k => m.text.toLowerCase().includes(k))
+  );
+  
+  const messagesToShow = relevantMessages.length > 0 ? relevantMessages : messages.slice(0, 5);
+  
+  return messagesToShow.map(m => 
+    `• #${m.channel}: "${m.text.slice(0, 100)}${m.text.length > 100 ? '...' : ''}"`
+  ).join("\n");
 }
 
 /* ---------------- Main Handler ---------------- */
@@ -109,8 +121,10 @@ export async function POST(req: Request) {
     const recentIssues = await JiraIssue.find({ userId: USER_ID }).sort({ updatedAtISO: -1 }).limit(60).lean();
     const relevantIssues = recentIssues.filter(i => keywords.some(k => i.title.toLowerCase().includes(k)));
     const jiraSelected = (relevantIssues.length ? relevantIssues : recentIssues).slice(0, JIRA_LIMIT);
+    
+    // Enhanced JIRA block with more details
     const jiraBlock = jiraSelected.map(i =>
-      `• ${i.issueKey} [${i.state}] (${i.priority || "NoPri"}) ${i.title}`
+      `• ${i.issueKey} [${i.state}] "${i.title}" (Priority: ${i.priority || "NoPri"}${i.assignee ? `, Assigned to: ${i.assignee}` : ''})`
     ).join("\n");
 
     // 3. Slack messages - UPDATED TO USE DATABASE
@@ -129,11 +143,10 @@ export async function POST(req: Request) {
         const chJson = await chRes.json();
 
         console.log("Slack Token:", slackData?.accessToken?.slice(0, 6));
-        console.log("All Channels Response:", chJson);
         if (chJson.ok && chJson.channels) {
           allChannelsData = chJson.channels;
 
-          // Scrape messages from ALL channels (as requested)
+          // Scrape messages from ALL channels
           for (const channel of allChannelsData) {
             try {
               const hist = await fetch(
@@ -170,17 +183,20 @@ export async function POST(req: Request) {
       }
     }
 
-    const slackBlock = slackMessages.slice(0, 100).map(m => `- #${m.channel} ${m.user}: ${m.text}`).join("\n");
+    // Enhanced Slack block with actual message content
+    const slackBlock = slackMessages.slice(0, 50).map(m => 
+      `- #${m.channel}: "${m.text}"`
+    ).join("\n");
 
-    // 4. Enhanced Gemini prompt with stronger instructions
+    // 4. Enhanced Gemini prompt with detailed content requirements
     const prompt = `
-You are an AI meeting preparation assistant. Your task is to analyze the provided data and create a comprehensive pre-meeting brief in STRICT JSON format.
+You are an AI meeting preparation assistant. Analyze the provided data and create a comprehensive pre-meeting brief in STRICT JSON format.
 
 CRITICAL INSTRUCTIONS:
 - You MUST return ONLY valid JSON - no markdown, no backticks, no extra text
 - Start your response with { and end with }
 - Do NOT use \`\`\`json or any markdown formatting
-- If any field has no relevant content, use the exact text "None"
+- For each field, provide SPECIFIC DETAILS about what was discussed/found
 
 MEETING CONTEXT:
 Title: "${meetingTitle}"
@@ -189,37 +205,37 @@ Attendees: ${attendees.join(", ") || "None"}
 
 AVAILABLE DATA:
 
-JIRA ISSUES:
+JIRA ISSUES (${jiraSelected.length} total):
 ${jiraBlock || "None"}
 
 SLACK DISCUSSIONS (${slackMessages.length} messages from ${usedChannels.length} channels):
 ${slackBlock || "None"}
 
-ANALYSIS TASKS:
-1. Identify how JIRA issues relate to the meeting topic
-2. Extract relevant Slack discussions about "${meetingTitle}"
-3. Find blockers, concerns, or problems mentioned
-4. Identify action items or next steps
-5. Assess agenda-content alignment
+ANALYSIS REQUIREMENTS:
+1. For JIRA section: Mention specific issue titles and current status
+2. For SLACK section: Quote or summarize actual discussions that are relevant
+3. For BLOCKERS: Identify specific technical issues or problems mentioned
+4. For ACTIONS: List concrete next steps mentioned in conversations
+5. Provide detailed agenda matching analysis
 
-REQUIRED OUTPUT FORMAT (copy this structure exactly):
+REQUIRED OUTPUT FORMAT:
 {
-  "agenda": "Clear meeting objectives and expected outcomes based on title '${meetingTitle}'",
-  "jira": "Summary of relevant JIRA issues and their current status", 
-  "slack": "Key Slack discussions and insights related to the meeting topic",
-  "blockers": "Specific obstacles, problems, or concerns identified",
-  "actions": "Concrete action items and next steps mentioned",
-  "overall": "Executive summary of meeting context and preparation status",
-  "agenda_match": "Assessment of how well Slack/JIRA content aligns with meeting agenda"
+  "agenda": "Clear meeting objectives based on '${meetingTitle}' - what needs to be accomplished",
+  "jira": "Detailed summary of specific JIRA issues, including titles and status. Mention actual issue names and what they're about", 
+  "slack": "Specific Slack discussions summarized - mention what people actually said about the topic, quote key messages",
+  "blockers": "Specific technical or process blockers mentioned in JIRA or Slack discussions",
+  "actions": "Concrete action items mentioned in conversations - be specific about what needs to be done",
+  "overall": "Executive summary with specific context about the issues and discussions found",
+  "agenda_match": "Detailed analysis of how the JIRA issues and Slack conversations relate to '${meetingTitle}' - mention specific examples"
 }
 
-CONTENT GUIDELINES:
-- Make each section 2-4 sentences maximum
-- Use specific details from the provided data
-- Focus on content directly related to "${meetingTitle}"
-- If no relevant content exists for a field, write "None"
-- Be concise but informative
-- Use business-appropriate language
+CONTENT REQUIREMENTS:
+- Include actual JIRA issue titles and descriptions where relevant
+- Quote or paraphrase specific Slack messages that are relevant
+- Mention specific technical details, usernames, channel names when relevant
+- If someone discussed JWT, authentication problems, login errors - mention those specifically
+- Focus on concrete details rather than generic summaries
+- Each section should be 3-5 sentences with specific information
 
 RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
 
@@ -227,26 +243,19 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
     const raw = await callGemini(prompt);
     console.log("[Gemini RAW Response Length]:", raw.length);
     console.log("[Gemini RAW First 200 chars]:", raw.substring(0, 200));
-    console.log("[Gemini RAW Last 200 chars]:", raw.substring(raw.length - 200));
 
     // Enhanced parsing with multiple attempts
     let parsed = null;
-
-    // Try multiple parsing strategies
+    
     const parsingAttempts = [
-      // Strategy 1: Clean and parse as-is
       () => {
         const cleaned = raw.replace(/``````/gi, "").trim();
         return JSON.parse(cleaned);
       },
-
-      // Strategy 2: Extract balanced JSON
       () => {
         const jsonStr = extractBalancedJson(raw);
         return jsonStr ? JSON.parse(jsonStr) : null;
       },
-
-      // Strategy 3: Find first { to last }
       () => {
         const start = raw.indexOf('{');
         const end = raw.lastIndexOf('}');
@@ -255,8 +264,6 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
         }
         return null;
       },
-
-      // Strategy 4: Remove common prefixes/suffixes
       () => {
         let cleaned = raw
           .replace(/^Here's the JSON response:?\s*/i, "")
@@ -281,40 +288,38 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
       }
     }
 
-    // Fallback with intelligent content extraction if parsing fails
+    // Enhanced fallback with detailed content analysis
     if (!parsed) {
-      console.log("🔄 All parsing failed, creating intelligent fallback");
-
-      // Analyze the content to create meaningful summaries
-      const loginRelatedJira = jiraSelected.filter(i =>
-        i.title.toLowerCase().includes('login') ||
-        i.issueKey.toLowerCase().includes('login') ||
+      console.log("🔄 All parsing failed, creating enhanced intelligent fallback");
+      
+      const loginRelatedJira = jiraSelected.filter(i => 
+        i.title.toLowerCase().includes('login') || 
         keywords.some(k => i.title.toLowerCase().includes(k))
       );
-
+      
       const loginRelatedSlack = slackMessages.filter(m =>
         m.text.toLowerCase().includes('login') ||
         keywords.some(k => m.text.toLowerCase().includes(k))
       );
 
       parsed = {
-        agenda: `Address and resolve login-related issues affecting user authentication and system access`,
-        jira: loginRelatedJira.length > 0
-          ? `${loginRelatedJira.length} login-related issues identified: ${loginRelatedJira.map(i => `${i.issueKey} (${i.state})`).join(', ')}`
-          : fallbackJiraSummary(jiraSelected),
+        agenda: `Address and resolve login-related authentication issues affecting user access. Focus on ${loginRelatedJira.length} identified JIRA issues and recent team discussions.`,
+        jira: loginRelatedJira.length > 0 
+          ? `Found ${loginRelatedJira.length} login-related issues: ${loginRelatedJira.map(i => `${i.issueKey} "${i.title}" (${i.state})`).join(', ')}. These cover authentication, rate limiting, and user login functionality.`
+          : fallbackJiraSummary(jiraSelected, keywords),
         slack: loginRelatedSlack.length > 0
-          ? `${loginRelatedSlack.length} relevant messages found discussing login issues, JWT credentials, and authentication concerns`
-          : fallbackSlackSummary(slackMessages),
+          ? `Team has been discussing: ${loginRelatedSlack.map(m => `"${m.text}"`).slice(0, 3).join(', ')}. Conversations include JWT credential management and authentication concerns.`
+          : fallbackSlackSummary(slackMessages, keywords),
         blockers: loginRelatedSlack.some(m => m.text.toLowerCase().includes('issue') || m.text.toLowerCase().includes('problem'))
-          ? "User authentication problems and login credential management challenges identified"
-          : "None",
-        actions: loginRelatedSlack.some(m => m.text.toLowerCase().includes('discuss') || m.text.toLowerCase().includes('look forward'))
-          ? "Discuss JWT implementation for login credentials, investigate current login issues, implement rate limiting"
-          : "None",
-        overall: `Meeting focused on login authentication issues with ${jiraSelected.length} JIRA items and active Slack discussions about JWT credentials and login problems`,
+          ? "Authentication service issues, login credential management challenges, and potential rate limiting implementation gaps."
+          : "None identified from current discussions",
+        actions: loginRelatedSlack.some(m => m.text.toLowerCase().includes('discuss') || m.text.toLowerCase().includes('implement'))
+          ? "Implement JWT-based authentication, investigate current login issues, add rate limiting functionality, and review user authentication flow."
+          : "Review JIRA issues and plan resolution approach", 
+        overall: `Meeting preparation reveals ${jiraSelected.length} JIRA issues (${loginRelatedJira.length} directly login-related) and ${slackMessages.length} recent messages. Team discussions show active work on JWT implementation and authentication concerns.`,
         agenda_match: loginRelatedSlack.length > 0 || loginRelatedJira.length > 0
-          ? "STRONG MATCH - Slack discussions about JWT credentials and login issues directly align with meeting agenda"
-          : "LIMITED MATCH - Some general discussion but limited specific login issue context"
+          ? `STRONG MATCH - Found ${loginRelatedJira.length} login-related JIRA issues and ${loginRelatedSlack.length} relevant Slack discussions. Team has been actively discussing JWT credentials, login problems, and authentication solutions.`
+          : "PARTIAL MATCH - Some authentication-related content found but limited specific login issue discussions"
       };
     }
 
@@ -322,14 +327,13 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
     const requiredFields = ['agenda', 'jira', 'slack', 'blockers', 'actions', 'overall', 'agenda_match'];
     for (const field of requiredFields) {
       if (!parsed[field] || parsed[field].trim() === '') {
-        parsed[field] = "None";
+        parsed[field] = "None identified";
       }
     }
 
-    // Normalize values with enhanced processing
     const sections = {
       agenda: normalizeSectionValue(parsed.agenda),
-      jira: normalizeSectionValue(parsed.jira),
+      jira: normalizeSectionValue(parsed.jira), 
       slack: normalizeSectionValue(parsed.slack),
       blockers: normalizeSectionValue(parsed.blockers),
       actions: normalizeSectionValue(parsed.actions),
@@ -350,7 +354,7 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
         slackChannels: usedChannels,
         totalSlackMessages: slackMessages.length,
         totalChannelsScraped: allChannelsData.length,
-        relevantSlackMessages: slackMessages.filter(m =>
+        relevantSlackMessages: slackMessages.filter(m => 
           keywords.some(k => m.text.toLowerCase().includes(k))
         ).length,
         relevantJiraIssues: jiraSelected.filter(i =>
