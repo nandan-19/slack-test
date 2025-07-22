@@ -93,6 +93,8 @@ console.log("Full session:", session);
       </div>
     );
   }
+  console.log("User ID:", session?.user?.id);
+console.log("Full session:", session);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden">
