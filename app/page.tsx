@@ -6,6 +6,11 @@ import { useSession, signIn, signOut } from "next-auth/react";
 const LandingPage = () => {
   const { data: session, status } = useSession();
 
+// Add this line to see the user ID
+console.log("User ID:", session?.user?.id);
+console.log("Full session:", session);
+
+
   const handleSummariseMeeting = async () => {
     const googleAccessToken = localStorage.getItem("google_access_token");
     if (!googleAccessToken) {
@@ -38,6 +43,7 @@ const LandingPage = () => {
     try {
       const res = await fetch("/api/connectors/jira/status", { cache: "no-store" });
       const data = await res.json();
+      console.log(data);
       if (data.connected) {
         window.location.href = "/jira-dashboard";
       } else {
