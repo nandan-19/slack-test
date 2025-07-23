@@ -248,10 +248,10 @@ export default function JiraDashboard() {
           {/* Back Button & Logo */}
           <div className="flex items-center space-x-6">
             <button
-              onClick={() => (window.location.href = "/")}
+              onClick={() => (window.location.href = "/connectors/pre-meeting")}
               className="flex items-center gap-2 text-sm font-semibold text-rose-700 hover:text-rose-800 transition-colors bg-gradient-to-r from-amber-50/80 to-rose-50/60 px-4 py-2 rounded-xl border border-rose-200/50 hover:border-rose-300/60"
             >
-              ← Back to AutoBrief
+              ← Back
             </button>
             <div className="relative w-10 h-10 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
               <div className="relative">
