@@ -25,18 +25,13 @@ export async function POST(req: NextRequest) {
             result = await executeJiraCreate(action, userId);
             break;
 
-          case "jira_update":
-            result = await executeJiraUpdate(action, userId);
-            break;
+          
 
           case "calendar_create":
             result = await executeCalendarCreate(action, accessToken);
             break;
 
-          case "calendar_delete":
-            result = await executeCalendarDelete(action, accessToken);
-            break;
-
+           
           default:
             result = { success: false, error: "Unknown action type" };
         }
@@ -95,9 +90,9 @@ async function executeJiraCreate(action: any, userId: string) {
 /**
  * JIRA: UPDATE ISSUE (still TODO)
  */
-async function executeJiraUpdate(_action: any, _userId: string) {
-  return { success: false, error: "Jira update not implemented yet" };
-}
+// async function executeJiraUpdate(_action: any, _userId: string) {
+//   return { success: false, error: "Jira update not implemented yet" };
+// }
 
 /**
  * GOOGLE CALENDAR: CREATE EVENT
@@ -142,6 +137,6 @@ async function executeCalendarCreate(action: any, token: string) {
 /**
  * GOOGLE CALENDAR: DELETE EVENT (placeholder)
  */
-async function executeCalendarDelete(_action: any, _token: string) {
-  return { success: false, error: "Calendar delete not implemented yet" };
-}
+// async function executeCalendarDelete(_action: any, _token: string) {
+//   return { success: false, error: "Calendar delete not implemented yet" };
+// }

@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       summary_model: 'conversational',
       summary_type: 'bullets'
     });
+    console.log("transcript", transcript);
 
     return NextResponse.json({
       id: transcript.id,

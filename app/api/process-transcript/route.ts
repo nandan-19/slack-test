@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 Your task is to:
 1. Identify action items, tasks, issues, and follow-ups
 2. Detect scheduling requests for future meetings
-3. Classify each item as one of: jira_create, jira_update, calendar_create, calendar_delete
+3. Classify each item as one of: jira_create, calendar_create
 4. Extract relevant metadata for each action
 
 For JIRA items, extract:
@@ -50,7 +50,7 @@ For Calendar items, extract:
 Return a JSON array of actionable items with this structure:
 {
   "id": "unique_id",
-  "type": "jira_create|jira_update|calendar_create|calendar_delete",
+  "type": "jira_create|calendar_create",
   "title": "Brief title",
   "description": "Detailed description",
   "priority": "high|medium|low",
