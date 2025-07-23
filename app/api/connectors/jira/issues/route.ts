@@ -33,8 +33,8 @@ export async function GET(req: Request) {
 
     // Pull normalized issues from Mongo.
     const docs = await JiraIssue.find({
-      userId,
-      cloudId: integ.cloudId,
+      userId: userId,
+      cloudId: (integ as any).cloudId,
     })
       .sort({ updatedAtISO: -1 })
       .limit(limit)
