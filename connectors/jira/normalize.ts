@@ -1,4 +1,3 @@
-
 // connectors/jira/normalize.ts
 interface JiraIssueRaw { key: string; fields: any; }
 
@@ -27,6 +26,6 @@ export function normalizeJiraIssue(issue: JiraIssueRaw) {
     labels: f.labels || [],
     createdAtISO: f.created,
     updatedAtISO: f.updated,
-    raw: issue
+    raw: issue,
   };
 }
