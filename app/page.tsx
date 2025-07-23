@@ -6,9 +6,6 @@ import { useSession, signIn, signOut } from "next-auth/react";
 const LandingPage = () => {
   const { data: session, status } = useSession();
 
-// Add this line to see the user ID
-console.log("User ID:", session?.user?.id);
-console.log("Full session:", session);
 
 
   const handleSummariseMeeting = async () => {
@@ -92,9 +89,7 @@ console.log("Full session:", session);
         <div className="text-amber-700 text-xl">Loading...</div>
       </div>
     );
-  }
-  console.log("User ID:", session?.user?.id);
-console.log("Full session:", session);
+  }   
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden">

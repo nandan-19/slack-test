@@ -1,9 +1,9 @@
-
 // models/SlackIntegration.ts
 import mongoose from 'mongoose';
 
 export interface ISlackIntegration {
-  userId: string;
+  userId: string; // Keep this for Slack user ID
+  nextAuthUserId: string; // Add this for session.user.id
   teamId: string;
   teamName: string;
   encryptedAccessToken: string;
@@ -14,8 +14,13 @@ export interface ISlackIntegration {
   isActive: boolean;
 }
 
-const SlackIntegrationSchema = new mongoose.Schema<ISlackIntegration>({
+const SlackIntegrationSchema = new mongoose.Schema({
   userId: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  nextAuthUserId: { // Add this field
     type: String,
     required: true,
     index: true,
@@ -55,7 +60,7 @@ const SlackIntegrationSchema = new mongoose.Schema<ISlackIntegration>({
   timestamps: true,
 });
 
-// Compound index for unique user-team combinations
-SlackIntegrationSchema.index({ userId: 1, teamId: 1 }, { unique: true });
+// Update compound index
+SlackIntegrationSchema.index({ nextAuthUserId: 1, teamId: 1 }, { unique: true });
 
-export default mongoose.models.SlackIntegration || mongoose.model<ISlackIntegration>('SlackIntegration', SlackIntegrationSchema);
+export default mongoose.models.SlackIntegration || mongoose.model('SlackIntegration', SlackIntegrationSchema);

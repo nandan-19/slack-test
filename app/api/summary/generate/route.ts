@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth"; // Add this import
 import { connectMongo } from "@/lib/mongo";
 import JiraIssue from "@/models/JiraIssue";
 import MeetingSummary from "@/models/MeetingSummary";
 import { callGemini } from "@/services/gemini";
 import { getSlackTokenForUser } from "@/lib/slack";
 
-const USER_ID = "demo-user-1";
+// Remove the hardcoded USER_ID
 const JIRA_LIMIT = 15;
 const SLACK_MSG_LIMIT_PER_CHANNEL = 50;
 const SLACK_CHANNEL_SCAN_LIMIT = 10;
@@ -77,6 +78,16 @@ function fallbackSlackSummary(messages: any[], keywords: string[]): string {
 /* ---------------- Main Handler ---------------- */
 export async function POST(req: Request) {
   try {
+    // Get session and authenticate user
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const USER_ID = session.user.id; // Use session user ID
+    console.log(`🚀 Generating summary for user: ${USER_ID}`);
+
     await connectMongo();
     const { googleAccessToken } = await req.json();
     if (!googleAccessToken) {
@@ -117,7 +128,7 @@ export async function POST(req: Request) {
       .split(/[\s\-_:,\.]+/)
       .filter((w: string) => w.length > 3);
 
-    // 2. Jira issues
+    // 2. Jira issues - now uses session user ID
     const recentIssues = await JiraIssue.find({ userId: USER_ID }).sort({ updatedAtISO: -1 }).limit(60).lean();
     const relevantIssues = recentIssues.filter(i => keywords.some(k => i.title.toLowerCase().includes(k)));
     const jiraSelected = (relevantIssues.length ? relevantIssues : recentIssues).slice(0, JIRA_LIMIT);
@@ -127,12 +138,12 @@ export async function POST(req: Request) {
       `• ${i.issueKey} [${i.state}] "${i.title}" (Priority: ${i.priority || "NoPri"}${i.assignee ? `, Assigned to: ${i.assignee}` : ''})`
     ).join("\n");
 
-    // 3. Slack messages - UPDATED TO USE DATABASE
+    // 3. Slack messages - now uses session user ID
     let slackMessages: any[] = [];
     let usedChannels: string[] = [];
     let allChannelsData: any[] = [];
 
-    // Get Slack token from database
+    // Get Slack token using session user ID
     const slackData = await getSlackTokenForUser(USER_ID);
     if (slackData?.accessToken) {
       try {
@@ -289,47 +300,77 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
     }
 
     // Enhanced fallback with detailed content analysis
-    if (!parsed) {
-      console.log("🔄 All parsing failed, creating enhanced intelligent fallback");
-      
-      const loginRelatedJira = jiraSelected.filter(i => 
-        i.title.toLowerCase().includes('login') || 
-        keywords.some(k => i.title.toLowerCase().includes(k))
-      );
-      
-      const loginRelatedSlack = slackMessages.filter(m =>
-        m.text.toLowerCase().includes('login') ||
-        keywords.some(k => m.text.toLowerCase().includes(k))
-      );
+   // Enhanced fallback with dynamic content analysis based on actual agenda
+if (!parsed) {
+  console.log("🔄 All parsing failed, creating dynamic intelligent fallback");
+  
+  // Dynamically filter JIRA issues based on meeting keywords
+  const agendaRelatedJira = jiraSelected.filter(i => 
+    keywords.some(k => 
+      i.title.toLowerCase().includes(k) || 
+      i.description?.toLowerCase().includes(k) ||
+      i.issueKey.toLowerCase().includes(k)
+    )
+  );
+  
+  // Dynamically filter Slack messages based on meeting keywords + professional context
+  const agendaRelatedSlack = slackMessages.filter(m => {
+    const text = m.text.toLowerCase();
+    
+    // Check if message relates to meeting agenda
+    const isRelevant = keywords.some(k => text.includes(k));
+    
+    // Filter out casual/personal messages
+    const isCasual = 
+      text.includes('lunch') ||
+      text.includes('dinner') ||
+      text.includes('how are you') ||
+      text.includes('good morning') ||
+      text.includes('thanks') ||
+      text.includes('😄') ||
+      text.includes('lol') ||
+      text.includes('haha') ||
+      text.length < 10; // Very short messages likely casual
+    
+    return isRelevant && !isCasual;
+  });
 
-      parsed = {
-        agenda: `Address and resolve login-related authentication issues affecting user access. Focus on ${loginRelatedJira.length} identified JIRA issues and recent team discussions.`,
-        jira: loginRelatedJira.length > 0 
-          ? `Found ${loginRelatedJira.length} login-related issues: ${loginRelatedJira.map(i => `${i.issueKey} "${i.title}" (${i.state})`).join(', ')}. These cover authentication, rate limiting, and user login functionality.`
-          : fallbackJiraSummary(jiraSelected, keywords),
-        slack: loginRelatedSlack.length > 0
-          ? `Team has been discussing: ${loginRelatedSlack.map(m => `"${m.text}"`).slice(0, 3).join(', ')}. Conversations include JWT credential management and authentication concerns.`
-          : fallbackSlackSummary(slackMessages, keywords),
-        blockers: loginRelatedSlack.some(m => m.text.toLowerCase().includes('issue') || m.text.toLowerCase().includes('problem'))
-          ? "Authentication service issues, login credential management challenges, and potential rate limiting implementation gaps."
-          : "None identified from current discussions",
-        actions: loginRelatedSlack.some(m => m.text.toLowerCase().includes('discuss') || m.text.toLowerCase().includes('implement'))
-          ? "Implement JWT-based authentication, investigate current login issues, add rate limiting functionality, and review user authentication flow."
-          : "Review JIRA issues and plan resolution approach", 
-        overall: `Meeting preparation reveals ${jiraSelected.length} JIRA issues (${loginRelatedJira.length} directly login-related) and ${slackMessages.length} recent messages. Team discussions show active work on JWT implementation and authentication concerns.`,
-        agenda_match: loginRelatedSlack.length > 0 || loginRelatedJira.length > 0
-          ? `STRONG MATCH - Found ${loginRelatedJira.length} login-related JIRA issues and ${loginRelatedSlack.length} relevant Slack discussions. Team has been actively discussing JWT credentials, login problems, and authentication solutions.`
-          : "PARTIAL MATCH - Some authentication-related content found but limited specific login issue discussions"
-      };
-    }
-
-    // Ensure all required fields exist with proper values
-    const requiredFields = ['agenda', 'jira', 'slack', 'blockers', 'actions', 'overall', 'agenda_match'];
-    for (const field of requiredFields) {
-      if (!parsed[field] || parsed[field].trim() === '') {
-        parsed[field] = "None identified";
-      }
-    }
+  parsed = {
+    agenda: `Analyze and address issues related to "${meetingTitle}". Focus on ${agendaRelatedJira.length} relevant JIRA issues and team discussions from ${usedChannels.length} channels.`,
+    
+    jira: agendaRelatedJira.length > 0 
+      ? `Found ${agendaRelatedJira.length} relevant issues: ${agendaRelatedJira.map(i => `${i.issueKey} "${i.title}" (${i.state})`).join(', ')}. Issues relate to meeting agenda keywords: ${keywords.join(', ')}.`
+      : `${jiraSelected.length} total JIRA issues available but none directly match "${meetingTitle}" agenda. Review general backlog items.`,
+    
+    slack: agendaRelatedSlack.length > 0
+      ? `Team discussions related to "${meetingTitle}": ${agendaRelatedSlack.map(m => `#${m.channel}: "${m.text.slice(0, 80)}..."`).slice(0, 3).join(', ')}. Found ${agendaRelatedSlack.length} relevant messages from recent conversations.`
+      : `${slackMessages.length} total messages scanned but limited relevant discussion found for "${meetingTitle}". Team may need to discuss agenda items in upcoming meeting.`,
+    
+    blockers: agendaRelatedSlack.some(m => 
+      m.text.toLowerCase().includes('issue') || 
+      m.text.toLowerCase().includes('problem') ||
+      m.text.toLowerCase().includes('error') ||
+      m.text.toLowerCase().includes('stuck') ||
+      m.text.toLowerCase().includes('blocked')
+    ) ? `Technical or process blockers identified in team discussions related to ${meetingTitle}.`
+      : "No specific blockers mentioned in recent relevant discussions",
+    
+    actions: agendaRelatedSlack.some(m => 
+      m.text.toLowerCase().includes('need to') ||
+      m.text.toLowerCase().includes('should') ||
+      m.text.toLowerCase().includes('todo') ||
+      m.text.toLowerCase().includes('action') ||
+      m.text.toLowerCase().includes('implement')
+    ) ? `Action items mentioned in team conversations regarding ${meetingTitle}. Review specific implementation steps discussed.`
+      : `Review ${agendaRelatedJira.length} JIRA issues and plan concrete next steps for ${meetingTitle}`,
+    
+    overall: `Meeting preparation for "${meetingTitle}" shows ${jiraSelected.length} total JIRA issues (${agendaRelatedJira.length} agenda-relevant) and ${slackMessages.length} recent messages (${agendaRelatedSlack.length} professionally relevant). Analysis based on keywords: ${keywords.join(', ')}.`,
+    
+    agenda_match: agendaRelatedSlack.length > 0 || agendaRelatedJira.length > 0
+      ? `GOOD MATCH - Found ${agendaRelatedJira.length} JIRA issues and ${agendaRelatedSlack.length} Slack discussions directly relating to "${meetingTitle}". Team has relevant context for productive meeting.`
+      : `LIMITED MATCH - Minimal direct discussion found for "${meetingTitle}". Meeting agenda may be new topic requiring fresh discussion and planning.`
+  };
+}
 
     const sections = {
       agenda: normalizeSectionValue(parsed.agenda),
@@ -341,9 +382,9 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
       agenda_match: normalizeSectionValue(parsed.agenda_match)
     };
 
-    // 6. Store in DB with enhanced metadata
+    // 6. Store in DB with session user ID
     const doc = await MeetingSummary.create({
-      userId: USER_ID,
+      userId: USER_ID, // Now uses session user ID
       meetingTitle,
       meetingStart: meetingStart ? new Date(meetingStart) : undefined,
       meetingEnd: meetingEnd ? new Date(meetingEnd) : undefined,
@@ -368,6 +409,7 @@ RESPOND WITH JSON ONLY - NO OTHER TEXT:`;
     return NextResponse.json({
       ok: true,
       summaryId: doc._id,
+      userId: USER_ID, // Include user ID in response
       stats: {
         jiraIssues: jiraSelected.length,
         slackMessages: slackMessages.length,

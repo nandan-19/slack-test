@@ -1,12 +1,19 @@
 // app/api/connectors/slack/callback/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
-import { connectMongo } from '@/lib/mongo'; // Using your connection
+import { auth } from '@/auth'; // Add this import
+import { connectMongo } from '@/lib/mongo';
 import SlackIntegration from '@/models/SlackIntegration';
 import { encrypt } from '@/lib/crypto';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth(); // Get session
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const code = req.nextUrl.searchParams.get('code');
     const state = req.nextUrl.searchParams.get('state');
 
@@ -28,25 +35,25 @@ export async function GET(req: NextRequest) {
     });
 
     const data = response.data;
-
+    
     if (!data.ok) {
       console.error('Slack OAuth error:', data);
-      return NextResponse.json({
-        error: 'Slack OAuth failed',
-        details: data.error_description || data.error
+      return NextResponse.json({ 
+        error: 'Slack OAuth failed', 
+        details: data.error_description || data.error 
       }, { status: 400 });
     }
 
-    // Connect to database using your function
     await connectMongo();
 
     // Encrypt sensitive data
     const encryptedAccessToken = encrypt(data.access_token);
     const encryptedRefreshToken = data.refresh_token ? encrypt(data.refresh_token) : undefined;
 
-    // Save or update integration
+    // Save integration with session user ID
     const integrationData = {
-      userId: data.authed_user.id,
+      userId: data.authed_user.id, // Slack user ID
+      nextAuthUserId: session.user.id, // Session user ID
       teamId: data.team?.id || 'unknown',
       teamName: data.team?.name || 'Unknown Team',
       encryptedAccessToken,
@@ -57,23 +64,24 @@ export async function GET(req: NextRequest) {
     };
 
     await SlackIntegration.findOneAndUpdate(
-      { userId: data.authed_user.id, teamId: data.team?.id || 'unknown' },
+      { nextAuthUserId: session.user.id, teamId: data.team?.id || 'unknown' },
       integrationData,
       { upsert: true, new: true }
     );
 
-    console.log(`✅ Slack integration saved for user: ${data.authed_user.id}`);
+    console.log(`✅ Slack integration saved for session user: ${session.user.id}`);
 
-    // Redirect to success page
-    const frontendUrl = "https://slack-test-theta.vercel.app/connectors/pre-meeting";
-
+    const frontendUrl = process.env.FRONTEND_URL || process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3000';
+      
     return NextResponse.redirect(`${frontendUrl}/?slack=connected`);
 
   } catch (error: any) {
     console.error('Slack OAuth error:', error.message);
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: error.message
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
     }, { status: 500 });
   }
 }
