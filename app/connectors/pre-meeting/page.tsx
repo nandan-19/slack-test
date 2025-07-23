@@ -6,33 +6,30 @@ import { useSession, signOut } from 'next-auth/react';
 interface Notification {
   id: string;
   type: 'success' | 'error' | 'info';
+  title: string;
   message: string;
 }
 
 const LandingPage = () => {
   const { data: session, status } = useSession();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
-  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+  const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     const id = Date.now().toString();
-    const notification: Notification = { id, type, message };
+    const newNotification: Notification = { id, type, title, message };
     
-    setNotifications(prev => [...prev, notification]);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+    setNotification(newNotification);
+    // No auto-dismiss - user must click "Got it"
   };
 
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const closeNotification = () => {
+    setNotification(null);
   };
 
   const handleSummariseMeeting = async () => {
     const googleAccessToken = localStorage.getItem("google_access_token");
     if (!googleAccessToken) {
-      showNotification('error', 'Connect Calendar first (Google token missing).');
+      showNotification('error', 'Authentication Required', 'Please connect your Google Calendar first to generate meeting summaries.');
       return;
     }
     try {
@@ -43,14 +40,16 @@ const LandingPage = () => {
       });
       const data = await res.json();
       if (!data.ok) {
-        showNotification('error', `Failed: ${data.error}`);
+        showNotification('error', 'Summary Generation Failed', `Unable to generate summary: ${data.error}`);
         return;
       }
-      showNotification('success', 'Meeting summary generated successfully!');
-      window.location.href =`/summary?id=${data.summaryId}`;
+      showNotification('success', 'Summary Generated!', 'Your meeting summary has been created successfully.');
+      setTimeout(() => {
+        window.location.href = `/summary?id=${data.summaryId}`;
+      }, 1500);
     } catch (e) {
       console.error(e);
-      showNotification('error', 'Error generating summary. Please try again.');
+      showNotification('error', 'Network Error', 'Failed to generate summary. Please check your connection and try again.');
     }
   };
 
@@ -69,8 +68,7 @@ const LandingPage = () => {
       }
     } catch (err) {
       console.error("Jira connect error:", err);
-      showNotification('error', 'Failed to connect to Jira. Please try again.');
-      window.location.href = "/api/connectors/jira/oauth/start";
+      showNotification('error', 'Jira Connection Failed', 'Unable to connect to Jira. Please try again or check your permissions.');
     }
   };
 
@@ -94,100 +92,100 @@ const LandingPage = () => {
       const data = await response.json();
       if (data.success) {
         console.log('Fetched events:', data.events);
-        showNotification('success', `Fetched ${data.events.length} upcoming events successfully!`);
+        showNotification('success', 'Calendar Connected!', `Successfully fetched ${data.events.length} upcoming events from your calendar.`);
       } else {
-        showNotification('error', 'Failed to fetch events. Try reauthenticating.');
+        showNotification('error', 'Calendar Sync Failed', 'Unable to fetch calendar events. Please reauthenticate your Google account.');
         localStorage.removeItem('google_access_token');
       }
     } catch (error) {
       console.error('Calendar fetch error:', error);
-      showNotification('error', 'Calendar fetch error. Please check your connection and try again.');
+      showNotification('error', 'Connection Error', 'Failed to connect to Google Calendar. Please check your internet connection.');
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden font-inter">
+      {/* Top Middle Popup Notification */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={closeNotification}
+          />
+          
+          {/* Notification Tile - Small Size */}
+          <div className="relative bg-gradient-to-br from-white/96 to-amber-50/90 backdrop-blur-xl border-2 border-amber-200/60 rounded-2xl shadow-2xl max-w-sm w-full p-6 transform animate-in slide-in-from-top-4 duration-300">
+            {/* Close Button */}
+            <button
+              onClick={closeNotification}
+              className="absolute top-3 right-3 text-amber-600 hover:text-amber-800 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Icon - Small */}
+            <div className="flex justify-center mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
+                notification.type === 'success' 
+                  ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
+                  : notification.type === 'error'
+                  ? 'bg-gradient-to-br from-red-400 to-rose-500'
+                  : 'bg-gradient-to-br from-blue-400 to-indigo-500'
+              }`}>
+                {notification.type === 'success' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {notification.type === 'error' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                {notification.type === 'info' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Content - Compact */}
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-amber-900 mb-2">
+                {notification.title}
+              </h3>
+              <p className="text-sm text-amber-800 leading-relaxed mb-5">
+                {notification.message}
+              </p>
+              
+              {/* Action Button */}
+              <button
+                onClick={closeNotification}
+                className={`w-full py-2.5 px-4 rounded-lg font-semibold text-white text-sm transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 ${
+                  notification.type === 'success'
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700'
+                    : notification.type === 'error'
+                    ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                }`}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Background Pattern */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-200/30 via-transparent to-rose-200/40"></div>
         <div className="absolute top-[-20%] left-[-20%] w-3/5 h-[450px] bg-gradient-to-br from-amber-400/40 to-rose-300/20 blur-3xl rounded-full opacity-60 animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-20%] w-2/5 h-[400px] bg-gradient-to-tl from-rose-400/35 to-amber-200/15 blur-3xl rounded-full opacity-50 animate-pulse" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1/3 h-[250px] bg-gradient-to-r from-pink-300/20 to-orange-300/20 blur-2xl rounded-full opacity-40" />
-      </div>
-
-      {/* Premium Notification System */}
-      <div className="fixed top-5 right-5 z-50 space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`
-              max-w-xs w-full shadow-2xl rounded-xl pointer-events-auto overflow-hidden transform transition-all duration-500 ease-out animate-in slide-in-from-right-5
-              ${notification.type === 'success' 
-                ? 'bg-gradient-to-r from-emerald-50/95 via-green-50/95 to-teal-50/95 border-2 border-emerald-200/60 shadow-emerald-200/50' 
-                : notification.type === 'error'
-                ? 'bg-gradient-to-r from-red-50/95 via-rose-50/95 to-pink-50/95 border-2 border-red-200/60 shadow-red-200/50'
-                : 'bg-gradient-to-r from-blue-50/95 via-indigo-50/95 to-purple-50/95 border-2 border-blue-200/60 shadow-blue-200/50'
-              }
-              backdrop-blur-lg hover:scale-105 hover:shadow-3xl
-            `}
-          >
-            <div className="p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  {notification.type === 'success' && (
-                    <div className="w-7 h-7 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
-                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  )}
-                  {notification.type === 'error' && (
-                    <div className="w-7 h-7 bg-gradient-to-r from-red-500 to-rose-500 rounded-full flex items-center justify-center shadow-lg">
-                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  )}
-                  {notification.type === 'info' && (
-                    <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center shadow-lg">
-                      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="ml-3 w-0 flex-1">
-                  <p className={`text-xs font-bold ${
-                    notification.type === 'success' ? 'text-emerald-900' :
-                    notification.type === 'error' ? 'text-red-900' : 'text-blue-900'
-                  }`}>
-                    {notification.type === 'success' ? 'Success!' :
-                     notification.type === 'error' ? 'Error!' : 'Info'}
-                  </p>
-                  <p className={`text-xs font-medium leading-relaxed ${
-                    notification.type === 'success' ? 'text-emerald-800' :
-                    notification.type === 'error' ? 'text-red-800' : 'text-blue-800'
-                  }`}>
-                    {notification.message}
-                  </p>
-                </div>
-                <div className="ml-3 flex-shrink-0 flex">
-                  <button
-                    onClick={() => removeNotification(notification.id)}
-                    className={`rounded-full p-1 inline-flex text-xs font-medium transition-all duration-200 hover:scale-110 ${
-                      notification.type === 'success' ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100' :
-                      notification.type === 'error' ? 'text-red-600 hover:text-red-800 hover:bg-red-100' : 'text-blue-600 hover:text-blue-800 hover:bg-blue-100'
-                    }`}
-                  >
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Premium Header */}
