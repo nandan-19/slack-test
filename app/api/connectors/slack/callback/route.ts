@@ -71,9 +71,7 @@ export async function GET(req: NextRequest) {
 
     console.log(`✅ Slack integration saved for session user: ${session.user.id}`);
 
-    const frontendUrl = process.env.FRONTEND_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000';
+      const frontendUrl ='slack-test-theta.vercel.app';
       
     return NextResponse.redirect(`${frontendUrl}/?slack=connected`);
 
