@@ -346,16 +346,8 @@ const LandingPage = () => {
             </button>
           </div>
 
-          {/* Enhanced Info Badge */}
-          <div className="bg-gradient-to-r from-amber-50/95 via-rose-50/95 to-pink-50/95 backdrop-blur-xl border-2 border-rose-200/70 rounded-2xl px-8 py-4 shadow-2xl inline-block hover:scale-105 transition-transform duration-300">
-            <p className="text-rose-800 font-bold text-base flex items-center justify-center space-x-2">
-              <span>Powered by AI</span>
-              <span>•</span>
-              <span>Secure</span>
-              <span>•</span>
-              <span>Real-time Sync</span>
-            </p>
-          </div>
+           
+         
         </div>
       </main>
 
