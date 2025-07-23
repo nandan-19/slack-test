@@ -1,49 +1,17 @@
 'use client'
 
 import React, { useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 
 const LandingPage = () => {
-  const handleSummariseMeeting = async () => {
-    const googleAccessToken = localStorage.getItem("google_access_token");
-    if (!googleAccessToken) {
-      alert("Connect Calendar first (Google token missing).");
-      return;
-    }
-    try {
-      const res = await fetch("/api/summary/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ googleAccessToken })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        alert("Failed: " + data.error);
-        return;
-      }
-      window.location.href = `/summary?id=${data.summaryId}`;
-    } catch (e) {
-      console.error(e);
-      alert("Error generating summary");
-    }
+  const { data: session, status } = useSession();
+
+  const handlePreMeeting = () => {
+    window.location.href = "/connectors/pre-meeting";
   };
 
-  const handleConnectSlack = () => {
-    window.location.href = "/api/connectors/slack/start";
-  };
-
-  const handleConnectJira = async () => {
-    try {
-      const res = await fetch("/api/connectors/jira/status", { cache: "no-store" });
-      const data = await res.json();
-      if (data.connected) {
-        window.location.href = "/jira-dashboard";
-      } else {
-        window.location.href = "/api/connectors/jira/oauth/start";
-      }
-    } catch (err) {
-      console.error("Jira connect error:", err);
-      window.location.href = "/api/connectors/jira/oauth/start";
-    }
+  const handlePostMeeting = () => {
+    window.location.href = "/connectors/post-meeting";
   };
 
   useEffect(() => {
@@ -55,30 +23,8 @@ const LandingPage = () => {
     }
   }, []);
 
-  const handleCalendar = async () => {
-    const token = localStorage.getItem('google_access_token');
-    if (!token) {
-      window.location.href = '/api/connectors/google/init';
-      return;
-    }
-    try {
-      const response = await fetch(`/api/connectors/google/events?access_token=${token}`);
-      const data = await response.json();
-      if (data.success) {
-        console.log('Fetched events:', data.events);
-        alert(`Fetched ${data.events.length} upcoming events`);
-      } else {
-        alert('Failed to fetch events. Try reauthenticating.');
-        localStorage.removeItem('google_access_token');
-      }
-    } catch (error) {
-      console.error('Calendar fetch error:', error);
-      alert('Calendar fetch error. See console.');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden font-inter">
       {/* Background Pattern with Amber/Rose Fade */}
       <div className="absolute inset-0 opacity-8 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-200/20 via-transparent to-rose-200/25"></div>
@@ -89,28 +35,55 @@ const LandingPage = () => {
       {/* Header */}
       <header className="relative bg-white/85 backdrop-blur-lg border-b border-amber-200/40 shadow-sm z-10">
         <div className="max-w-7xl mx-auto px-8 py-6">
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={() => (window.location.href = "/connectors")}
-              className="flex items-center gap-2 text-sm font-semibold text-rose-700 hover:text-rose-800 transition-colors bg-gradient-to-r from-amber-50/80 to-rose-50/60 px-4 py-2 rounded-xl border border-rose-200/50 hover:border-rose-300/60"
-            >
-              ← Back
-            </button>
-            <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-sm transform rotate-3"></div>
-                <div className="relative bg-white/90 rounded-sm px-2 py-1 shadow-inner">
-                  <span className="text-amber-800 text-sm font-black tracking-tight">AB</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/20 rounded-sm transform rotate-3"></div>
+                  <div className="relative bg-white/90 rounded-sm px-2 py-1 shadow-inner">
+                    <span className="text-amber-800 text-sm font-black tracking-tight font-mono">AB</span>
+                  </div>
                 </div>
               </div>
+              <div>
+                <h1 className="text-3xl font-bold text-amber-900 tracking-tight">
+                  AutoBrief
+                </h1>
+                <p className="text-sm font-semibold text-amber-700 mt-1">
+                  AI-Driven Meetings & Collaboration Platform
+                </p>
+              </div>
             </div>
+
+            {/* Auth Section - Sign Out Button */}
             <div>
-              <h1 className="text-3xl font-bold text-amber-900 tracking-tight">
-                AutoBrief
-              </h1>
-              <p className="text-sm font-semibold text-amber-700 mt-1">
-                AI-Driven Meetings & Collaboration Platform
-              </p>
+              {session?.user ? (
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
+                    {session.user.image && (
+                      <img 
+                        src={session.user.image} 
+                        alt={session.user.name || 'User'}
+                        className="w-8 h-8 rounded-full border-2 border-rose-200"
+                      />
+                    )}
+                    <div className="hidden md:block">
+                      <p className="text-sm font-medium text-amber-900">{session.user.name}</p>
+                      <p className="text-xs text-amber-700">{session.user.email}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="bg-rose-500 hover:bg-rose-600 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="text-amber-700 text-sm font-medium">
+                  Please sign in to access features
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -131,67 +104,50 @@ const LandingPage = () => {
             </p>
           </div>
 
-          {/* Action Buttons Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto mb-16">
-            {/* Summarise Meeting Button - NEW AMBER TO ROSE GRADIENT */}
-            <button
-              onClick={handleSummariseMeeting}
-              className="group bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-medium py-6 px-8 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
-            >
-              <div className="flex items-center justify-center space-x-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-lg">Summarise Latest Meeting</span>
-              </div>
-            </button>
+          {/* Action Buttons - Only show if user is logged in */}
+          {session?.user ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-16">
+              {/* Pre-Meeting Button */}
+              <button
+                onClick={handlePreMeeting}
+                className="group bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold py-8 px-10 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl hover:-translate-y-1"
+              >
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-center">
+                    <span className="text-xl font-bold block">Pre-Meeting</span>
+                    <span className="text-sm opacity-90">Setup & Preparation</span>
+                  </div>
+                </div>
+              </button>
 
-            {/* Calendar Button - Updated to match new scheme */}
-            <button
-              onClick={handleCalendar}
-              className="group bg-white/90 border-2 border-rose-300/70 hover:bg-rose-50/80 hover:border-rose-400 text-rose-800 font-bold py-6 px-8 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg backdrop-blur-sm"
-            >
-              <div className="flex items-center justify-center space-x-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-lg">Calendar</span>
-              </div>
-            </button>
+              {/* Post-Meeting Button */}
+              <button
+                onClick={handlePostMeeting}
+                className="group bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold py-8 px-10 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl hover:-translate-y-1"
+              >
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div className="text-center">
+                    <span className="text-xl font-bold block">Post-Meeting</span>
+                    <span className="text-sm opacity-90">Analysis & Summary</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-amber-50/80 to-rose-50/60 backdrop-blur-sm border border-rose-200/60 rounded-2xl px-8 py-6 shadow-lg inline-block">
+              <p className="text-rose-800 font-semibold">
+                Please sign in to access Pre-Meeting and Post-Meeting features
+              </p>
+            </div>
+          )}
 
-            {/* Connect to Jira Button - Updated to match new scheme */}
-            <button
-              onClick={handleConnectJira}
-              className="group bg-white/90 border-2 border-rose-300/70 hover:bg-rose-50/80 hover:border-rose-400 text-rose-800 font-bold py-6 px-8 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg backdrop-blur-sm"
-            >
-              <div className="flex items-center justify-center space-x-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span className="text-lg">Connect to Jira</span>
-              </div>
-            </button>
-
-            {/* Connect to Slack Button - NEW AMBER TO ROSE GRADIENT */}
-            <button
-              onClick={handleConnectSlack}
-              className="group bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-medium py-6 px-8 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
-            >
-              <div className="flex items-center justify-center space-x-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <span className="text-lg">Connect to Slack</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Additional Info */}
-          <div className="bg-gradient-to-r from-amber-50/80 to-rose-50/60 backdrop-blur-sm border border-rose-200/60 rounded-2xl px-8 py-5 shadow-lg inline-block">
-            <p className="text-rose-800 font-semibold">
-              Powered by AI • Secure • Real-time Sync
-            </p>
-          </div>
+          
         </div>
       </main>
 

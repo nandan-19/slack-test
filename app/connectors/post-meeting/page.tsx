@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
 
 interface TranscriptResult {
@@ -47,6 +48,7 @@ interface ProcessedResult {
 }
 
 export default function AudioTranscriber() {
+  const { data: session, status } = useSession();
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,11 +194,10 @@ export default function AudioTranscriber() {
     );
 
     try {
-      const token = localStorage.getItem("google_access_token");
       const response = await fetch('/api/execute-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actions: actionsToExecute, accessToken:token })
+        body: JSON.stringify({ actions: actionsToExecute })
       });
 
       const result = await response.json();
@@ -222,15 +223,70 @@ export default function AudioTranscriber() {
         <div className="absolute bottom-[-16%] right-[-10%] w-1/3 h-[370px] bg-gradient-to-tl from-rose-300/25 to-amber-100/0 blur-2xl rounded-full opacity-40" />
       </div>
 
- {/* Standalone Back Button */}
-      <div className="max-w-7xl mx-auto px-8 pt-8">
-        <button
-          onClick={() => (window.location.href = "/connectors")}
-          className="flex items-center gap-2 text-sm font-semibold text-rose-700 hover:text-rose-800 transition-colors bg-gradient-to-r from-amber-50/80 to-rose-50/60 px-4 py-2 rounded-xl border border-rose-200/50 hover:border-rose-300/60"
-        >
-          ← Back
-        </button>
-      </div>
+      {/* Header */}
+      <header className="relative bg-white/85 backdrop-blur-lg border-b border-amber-200/40 shadow-sm z-10">
+        <div className="max-w-7xl mx-auto px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              {/* Back Button */}
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center gap-2 text-sm font-semibold text-rose-700 hover:text-rose-800 transition-colors bg-gradient-to-r from-amber-50/80 to-rose-50/60 px-4 py-2 rounded-xl border border-rose-200/50 hover:border-rose-300/60"
+              >
+                ← Back
+              </button>
+              
+              <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/20 rounded-sm transform rotate-3"></div>
+                  <div className="relative bg-white/90 rounded-sm px-2 py-1 shadow-inner">
+                    <span className="text-amber-800 text-sm font-black tracking-tight font-mono">AB</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-amber-900 tracking-tight">
+                  AutoBrief
+                </h1>
+                <p className="text-sm font-semibold text-amber-700 mt-1">
+                  Post-Meeting Analysis
+                </p>
+              </div>
+            </div>
+
+            {/* Auth Section - Sign Out Button */}
+            <div>
+              {session?.user ? (
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
+                    {session.user.image && (
+                      <img 
+                        src={session.user.image} 
+                        alt={session.user.name || 'User'}
+                        className="w-8 h-8 rounded-full border-2 border-rose-200"
+                      />
+                    )}
+                    <div className="hidden md:block">
+                      <p className="text-sm font-medium text-amber-900">{session.user.name}</p>
+                      <p className="text-xs text-amber-700">{session.user.email}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="bg-rose-500 hover:bg-rose-600 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="text-amber-700 text-sm font-medium">
+                  Please sign in to access features
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
       <div className="relative z-10 max-w-7xl mx-auto p-8">
         {/* Header */}
