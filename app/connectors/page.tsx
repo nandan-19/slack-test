@@ -32,55 +32,58 @@ const LandingPage = () => {
         <div className="absolute bottom-[-16%] right-[-10%] w-1/3 h-[370px] bg-gradient-to-tl from-rose-300/25 to-amber-100/0 blur-2xl rounded-full opacity-40" />
       </div>
 
-      {/* Header */}
-      <header className="relative bg-white/85 backdrop-blur-lg border-b border-amber-200/40 shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-8 py-6">
+      {/* Enhanced Header */}
+      <header className="relative bg-white/90 backdrop-blur-xl border-b border-amber-200/50 shadow-lg shadow-amber-100/20 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
+            {/* AutoBrief Branding - Left side */}
             <div className="flex items-center space-x-6">
-              <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+              {/* Enhanced Logo */}
+              <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:rotate-3">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-white/20 rounded-sm transform rotate-3"></div>
-                  <div className="relative bg-white/90 rounded-sm px-2 py-1 shadow-inner">
+                  <div className="absolute inset-0 bg-white/25 rounded-md transform rotate-6 shadow-inner"></div>
+                  <div className="relative bg-white/95 rounded-md px-2 py-1 shadow-2xl backdrop-blur-sm">
                     <span className="text-amber-800 text-sm font-black tracking-tight font-mono">AB</span>
                   </div>
                 </div>
               </div>
+              
               <div>
-                <h1 className="text-3xl font-bold text-amber-900 tracking-tight">
+                <h1 className="text-3xl font-black text-amber-900 tracking-tight bg-gradient-to-r from-amber-900 via-rose-800 to-amber-900 bg-clip-text text-transparent">
                   AutoBrief
                 </h1>
-                <p className="text-sm font-semibold text-amber-700 mt-1">
+                <p className="text-sm font-bold text-amber-700 mt-0.5 tracking-wide">
                   AI-Driven Meetings & Collaboration Platform
                 </p>
               </div>
             </div>
 
-            {/* Auth Section - Sign Out Button */}
+            {/* Enhanced Auth Section */}
             <div>
               {session?.user ? (
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 bg-gradient-to-r from-amber-50/90 to-rose-50/90 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-amber-200/60 shadow-lg">
                     {session.user.image && (
                       <img 
                         src={session.user.image} 
                         alt={session.user.name || 'User'}
-                        className="w-8 h-8 rounded-full border-2 border-rose-200"
+                        className="w-8 h-8 rounded-full border-2 border-rose-200 shadow-lg"
                       />
                     )}
                     <div className="hidden md:block">
-                      <p className="text-sm font-medium text-amber-900">{session.user.name}</p>
-                      <p className="text-xs text-amber-700">{session.user.email}</p>
+                      <p className="text-xs font-bold text-amber-900">{session.user.name}</p>
+                      <p className="text-[10px] font-semibold text-amber-700">{session.user.email}</p>
                     </div>
                   </div>
                   <button 
                     onClick={() => signOut({ callbackUrl: "/" })}
-                    className="bg-rose-500 hover:bg-rose-600 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                    className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300 text-xs shadow-lg hover:shadow-xl hover:scale-105"
                   >
                     Sign Out
                   </button>
                 </div>
               ) : (
-                <div className="text-amber-700 text-sm font-medium">
+                <div className="text-amber-700 text-sm font-bold bg-gradient-to-r from-amber-50/90 to-rose-50/90 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-amber-200/60 shadow-lg">
                   Please sign in to access features
                 </div>
               )}
@@ -146,8 +149,6 @@ const LandingPage = () => {
               </p>
             </div>
           )}
-
-          
         </div>
       </main>
 

@@ -57,29 +57,46 @@ export default function SummaryPage({ searchParams }: any) {
         <div className="absolute bottom-[-16%] right-[-10%] w-1/3 h-[370px] bg-gradient-to-tl from-rose-300/25 to-amber-100/0 blur-2xl rounded-full opacity-40" />
       </div>
 
-      {/* Header */}
-      <header className="relative bg-white/85 backdrop-blur-lg border-b border-amber-200/40 shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-8 py-6">
+      {/* Enhanced Header */}
+      <header className="relative bg-white/90 backdrop-blur-xl border-b border-amber-200/50 shadow-lg shadow-amber-100/20 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center space-x-6">
-            <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+            {/* Enhanced Logo */}
+            <div className="relative w-12 h-12 bg-gradient-to-br from-amber-500 via-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 hover:rotate-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-sm transform rotate-3"></div>
-                <div className="relative bg-white/90 rounded-sm px-2 py-1 shadow-inner">
+                <div className="absolute inset-0 bg-white/25 rounded-md transform rotate-6 shadow-inner"></div>
+                <div className="relative bg-white/95 rounded-md px-2 py-1 shadow-2xl backdrop-blur-sm">
                   <span className="text-amber-800 text-sm font-black tracking-tight font-mono">AB</span>
                 </div>
               </div>
             </div>
+            
             <div>
-              <h1 className="text-3xl font-bold text-amber-900 tracking-tight font-inter">
+              <h1 className="text-3xl font-black text-amber-900 tracking-tight bg-gradient-to-r from-amber-900 via-rose-800 to-amber-900 bg-clip-text text-transparent">
                 AutoBrief
               </h1>
-              <p className="text-sm font-semibold text-amber-700 mt-1 font-inter">
+              <p className="text-sm font-bold text-amber-700 mt-0.5 tracking-wide">
                 Meeting Summary Report
               </p>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Back Button - Below navbar, to the left */}
+      <div className="relative z-10 px-6 pt-4">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={() => window.location.href = "/connectors/pre-meeting"}
+            className="flex items-center gap-2 text-xs font-bold text-rose-700 hover:text-rose-800 transition-all duration-300 bg-gradient-to-r from-amber-50/90 to-rose-50/90 px-4 py-2 rounded-xl border-2 border-rose-200/60 hover:border-rose-300/80 shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        </div>
+      </div>
 
       <div className="relative z-10 p-8 flex flex-col items-center">
         <div className="max-w-6xl w-full">

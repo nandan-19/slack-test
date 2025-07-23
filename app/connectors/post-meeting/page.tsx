@@ -47,6 +47,13 @@ interface ProcessedResult {
   actionableItems: ActionableItem[];
 }
 
+interface Notification {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  title: string;
+  message: string;
+}
+
 export default function AudioTranscriber() {
   const { data: session, status } = useSession();
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
@@ -61,7 +68,22 @@ export default function AudioTranscriber() {
   const [executionResults, setExecutionResults] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   
+  // Popup notification state
+  const [notification, setNotification] = useState<Notification | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    const id = Date.now().toString();
+    const newNotification: Notification = { id, type, title, message };
+    
+    setNotification(newNotification);
+    // No auto-dismiss - user must click "Got it"
+  };
+
+  const closeNotification = () => {
+    setNotification(null);
+  };
 
   // Handle video/audio file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +130,8 @@ export default function AudioTranscriber() {
       }
 
     } catch (err) {
-      setError(`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError(null);
+      showNotification('error', 'Upload Failed',`Upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsProcessing(false);
     }
   };
@@ -132,17 +155,20 @@ export default function AudioTranscriber() {
             await processWithLLM(result.text);
           }
         } else if (result.status === 'error') {
-          setError('Transcription failed');
+          setError(null);
+          showNotification('error', 'Transcription Failed', 'The transcription process failed. Please try uploading your file again.');
           setIsProcessing(false);
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(poll, 5000); // Poll every 5 seconds
         } else {
-          setError('Transcription timeout - please try again');
+          setError(null);
+          showNotification('error', 'Transcription Timeout', 'Transcription is taking longer than expected. Please try again with a smaller file.');
           setIsProcessing(false);
         }
       } catch (err) {
-        setError('Failed to fetch results');
+        setError(null);
+        showNotification('error', 'Connection Error', 'Failed to fetch transcription results. Please check your connection and try again.');
         setIsProcessing(false);
       }
     };
@@ -165,9 +191,10 @@ export default function AudioTranscriber() {
       
       const result = await response.json();
       setProcessedResult(result);
+      showNotification('success', 'Analysis Complete!', 'Your meeting has been analyzed and actionable items have been extracted.');
     } catch (error) {
       console.error('LLM processing error:', error);
-      setError('Failed to process transcript with AI');
+      showNotification('error', 'AI Analysis Failed', 'Failed to process transcript with AI. The transcription is still available below.');
     } finally {
       setIsProcessingLLM(false);
     }
@@ -205,10 +232,10 @@ export default function AudioTranscriber() {
       
       // Show success message
       const successCount = result.results.filter((r: any) => r.success).length;
-      alert(`Successfully executed ${successCount} out of ${actionsToExecute.length} actions`);
+      showNotification('success', 'Actions Executed!', `Successfully executed ${successCount} out of ${actionsToExecute.length} actions.`);
     } catch (error) {
       console.error('Action execution failed:', error);
-      alert('Failed to execute actions');
+      showNotification('error', 'Execution Failed', 'Failed to execute selected actions. Please try again or execute them manually.');
     } finally {
       setIsExecuting(false);
     }
@@ -216,6 +243,81 @@ export default function AudioTranscriber() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-rose-50 to-pink-50/40 relative overflow-hidden font-inter">
+      {/* Top Middle Popup Notification */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={closeNotification}
+          />
+          
+          {/* Notification Tile - Small Size */}
+          <div className="relative bg-gradient-to-br from-white/96 to-amber-50/90 backdrop-blur-xl border-2 border-amber-200/60 rounded-2xl shadow-2xl max-w-sm w-full p-6 transform animate-in slide-in-from-top-4 duration-300">
+            {/* Close Button */}
+            <button
+              onClick={closeNotification}
+              className="absolute top-3 right-3 text-amber-600 hover:text-amber-800 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Icon - Small */}
+            <div className="flex justify-center mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
+                notification.type === 'success' 
+                  ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
+                  : notification.type === 'error'
+                  ? 'bg-gradient-to-br from-red-400 to-rose-500'
+                  : 'bg-gradient-to-br from-blue-400 to-indigo-500'
+              }`}>
+                {notification.type === 'success' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {notification.type === 'error' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                {notification.type === 'info' && (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Content - Compact */}
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-amber-900 mb-2">
+                {notification.title}
+              </h3>
+              <p className="text-sm text-amber-800 leading-relaxed mb-5">
+                {notification.message}
+              </p>
+              
+              {/* Action Button */}
+              <button
+                onClick={closeNotification}
+                className={`w-full py-2.5 px-4 rounded-lg font-semibold text-white text-sm transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 ${
+                  notification.type === 'success'
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700'
+                    : notification.type === 'error'
+                    ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                }`}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Pattern with Amber/Rose Fade */}
       <div className="absolute inset-0 opacity-8 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-200/20 via-transparent to-rose-200/25"></div>
@@ -353,7 +455,6 @@ export default function AudioTranscriber() {
             <p className="text-center mt-3 text-amber-900 font-semibold">Uploading... {uploadProgress}%</p>
           </div>
         )}
-
         {/* Processing Status */}
         {isProcessing && (
           <div className="text-center mb-12">
@@ -376,21 +477,6 @@ export default function AudioTranscriber() {
                 🧠 Gemini AI is analyzing transcript...
               </p>
               <p className="text-rose-700 mt-2">Extracting actionable items and insights</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <div className="mb-8 bg-gradient-to-r from-red-50/90 to-rose-50/80 backdrop-blur-sm border-2 border-red-300/60 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center space-x-3">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <strong className="text-red-800 font-bold">Error:</strong>
-                <span className="text-red-700 ml-2">{error}</span>
-              </div>
             </div>
           </div>
         )}
@@ -517,7 +603,7 @@ export default function AudioTranscriber() {
                                 ? '✅ Successfully executed' 
                                 : '❌ Failed to execute'}
                               {executionResults.find(r => r.actionId === item.id)?.error && (
-                                <span className="block mt-2 text-xs font-normal">
+                                <span className="block mt-2 text-xs font-normal text-red-700">
                                   Error: {executionResults.find(r => r.actionId === item.id)?.error}
                                 </span>
                               )}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Notification {
   id: string;
@@ -13,7 +14,7 @@ interface Notification {
 const LandingPage = () => {
   const { data: session, status } = useSession();
   const [notification, setNotification] = useState<Notification | null>(null);
-
+  const router = useRouter();
   const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     const id = Date.now().toString();
     const newNotification: Notification = { id, type, title, message };
@@ -252,7 +253,7 @@ const LandingPage = () => {
       <div className="relative z-10 px-6 pt-4">
         <div className="max-w-7xl mx-auto">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => router.push('/connectors')}
             className="flex items-center gap-2 text-xs font-bold text-rose-700 hover:text-rose-800 transition-all duration-300 bg-gradient-to-r from-amber-50/90 to-rose-50/90 px-4 py-2 rounded-xl border-2 border-rose-200/60 hover:border-rose-300/80 shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
