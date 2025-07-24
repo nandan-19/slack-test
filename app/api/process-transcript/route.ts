@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 interface ActionableItem {
   id: string;
-  type: 'jira_create' | 'jira_update' | 'calendar_create' | 'calendar_delete';
+  type: 'jira_create' | 'calendar_create' ;
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
@@ -38,7 +38,7 @@ For JIRA items, extract:
 - Priority (High, Medium, Low)
 - Assignee (if mentioned)
 - Due date (if mentioned)
-- Labels/components
+- Labels/components( give a single word, no spaces)
 
 For Calendar items, extract:
 - Meeting title

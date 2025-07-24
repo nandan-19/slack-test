@@ -219,12 +219,14 @@ export default function AudioTranscriber() {
     const actionsToExecute = processedResult.actionableItems.filter(item => 
       selectedActions.has(item.id)
     );
+    
 
     try {
+      const accesToken = localstorage.get('google_access_token')
       const response = await fetch('/api/execute-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actions: actionsToExecute })
+        body: JSON.stringify({ actions: actionsToExecute, accessToken: accessToken })
       });
 
       const result = await response.json();
