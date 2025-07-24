@@ -1,6 +1,6 @@
 
 // services/gemini.ts
-export async function callGemini(prompt: string, model = "gemini-1.5-flash") {
+export async function callGemini(prompt: string, model = "gemini-2.5-flash") {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY missing");
   const res = await fetch(
