@@ -565,7 +565,8 @@ export default function AudioTranscriber() {
                               item.priority === 'medium' ? 'bg-orange-50 text-orange-800 border-orange-200' :
                               'bg-gray-50 text-gray-800 border-gray-200'
                             }`}>
-                              {item.priority.toUpperCase()}
+                             {(item.priority || 'medium').toUpperCase()}
+
                             </span>
                             <span className="text-sm text-amber-700 bg-amber-50/80 px-3 py-2 rounded-lg border border-amber-200/50 font-semibold">
                               {Math.round(item.confidence * 100)}% confidence
