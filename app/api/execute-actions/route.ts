@@ -68,15 +68,29 @@ export async function POST(req: NextRequest) {
  */
 async function executeJiraCreate(action: any, userId: string) {
   try {
+    // Enhanced labels handling
+    let labels = action?.metadata?.labels;
+    
+    if (typeof labels === 'string') {
+      // Split comma-separated strings and trim whitespace
+      labels = labels.split(',').map(label => label.trim()).filter(label => label.length > 0);
+    } else if (!Array.isArray(labels)) {
+      labels = [];
+    }
+    
+    // Ensure all labels are strings
+    labels = labels.filter((label: any) => typeof label === 'string' && label.trim().length > 0);
+
     const result = await jiraCreateIssueForUser(userId, {
       title: action.title,
       description: action.description,
-      projectKey: action?.metadata?.projectKey, // may be undefined
-      issueType: action?.metadata?.issueType,   // may be undefined
-      priority: action?.metadata?.priority,     // include only if present
+      projectKey: action?.metadata?.projectKey,
+      issueType: action?.metadata?.issueType,
+      priority: action?.metadata?.priority,
       assigneeAccountId: action?.metadata?.assigneeAccountId,
-      labels: action?.metadata?.labels || [],
+      labels, // Now guaranteed to be array of strings
     });
+    
     return result;
   } catch (e: any) {
     console.error("[executeJiraCreate] error:", e);
@@ -86,6 +100,7 @@ async function executeJiraCreate(action: any, userId: string) {
     };
   }
 }
+
 
 /**
  * JIRA: UPDATE ISSUE (still TODO)

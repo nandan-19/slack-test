@@ -38,24 +38,37 @@ For JIRA items, extract:
 - Priority (High, Medium, Low)
 - Assignee (if mentioned)
 - Due date (if mentioned)
-- Labels/components( give a single word, no spaces)
+- Labels/components(ALWAYS return as an array of strings, even for single labels)
 
 For Calendar items, extract:
 - Meeting title
 - Participants (if mentioned)
-- Proposed date/time
-- Duration
+- Proposed date/time (MUST be in ISO 8601 format: YYYY-MM-DDTHH:mm:ss)
+- Duration in milliseconds (default: 3600000 for 1 hour)
 - Meeting type (follow-up, review, etc.)
+
+CRITICAL DATE FORMAT RULES:
+- ALL dates MUST be in ISO 8601 format: YYYY-MM-DDTHH:mm:ss
+- Examples: "2024-07-30T11:00:00", "2024-08-01T14:30:00"
+- If no time is mentioned, use 09:00:00 as default
+- If no date is mentioned but timeframe is (like "next Tuesday"), calculate the actual date
 
 Return a JSON array of actionable items with this structure:
 {
   "id": "unique_id",
+  
   "type": "jira_create|calendar_create",
   "title": "Brief title",
   "description": "Detailed description",
   "priority": "high|medium|low",
   "confidence": 0.85,
   "metadata": {
+   "labels": ["Backend", "API"], // Always use array format
+    "datetime": "2024-07-30T11:00:00", // ISO format only
+        "attendees": ["email1", "email2"],
+            "duration": 3600000, // milliseconds
+
+
     // Type-specific fields
   }
 }
