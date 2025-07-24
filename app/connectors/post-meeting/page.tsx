@@ -222,7 +222,7 @@ export default function AudioTranscriber() {
     
 
     try {
-      const accesToken = localStorage.get('google_access_token')
+      const accessToken = localStorage.get('google_access_token')
       const response = await fetch('/api/execute-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
